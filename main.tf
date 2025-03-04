@@ -29,11 +29,6 @@ resource "aws_iam_role" "drata" {
   tags = var.tags
 }
 
-#resource "aws_iam_role_policy_attachment" "security_audit" {
-#  role       = aws_iam_role.drata.name
-#  policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
-#}
-
 data "aws_iam_policy_document" "drata_additional_permissions" {
   for_each = var.drata_additional_inline_policies
 
