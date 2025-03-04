@@ -33,3 +33,38 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "drata_additional_inline_policies" {
+  description = "Additional permissions to add to the IAM role"
+  type = map(list(object({
+    sid       = optional(string)
+    effect    = string
+    actions   = list(string)
+    resources = list(string)
+    conditions = optional(list(object({
+      test     = string
+      variable = string
+      values   = list(string)
+    })))
+  })))
+  default = {
+    BackupPermissions = [{
+      effect = "Allow"
+      actions = [
+        "backup:ListBackupJobs",
+        "backup:ListRecoveryPointsByResource"
+      ]
+      resources = [
+        "*"
+      ]
+    }]
+  }
+}
+
+variable "drata_additional_policy_arns" {
+  description = "Map of IAM policies ARNs to attach to the Drata role"
+  type        = map(string)
+  default = {
+    "SecurityAudit" = "arn:aws:iam::aws:policy/SecurityAudit"
+  }
+}

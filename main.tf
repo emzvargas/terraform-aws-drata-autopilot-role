@@ -19,27 +19,6 @@ data "aws_iam_policy_document" "drata_autopilot_assume_role" {
     }
   }
 }
-
-resource "aws_iam_policy" "drata_additional_permissions" {
-  name        = "DrataAdditionalPermissions"
-  description = "Custom policy for permissions in addition to the SecurityAudit policy"
-  path        = "/"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = [
-            "backup:ListBackupJobs",
-            "backup:ListRecoveryPointsByResource"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
 resource "aws_iam_role" "drata" {
   name        = var.role_name
   path        = var.role_path
@@ -50,12 +29,45 @@ resource "aws_iam_role" "drata" {
   tags = var.tags
 }
 
-resource "aws_iam_role_policy_attachment" "security_audit" {
-  role       = aws_iam_role.drata.name
-  policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
+#resource "aws_iam_role_policy_attachment" "security_audit" {
+#  role       = aws_iam_role.drata.name
+#  policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
+#}
+
+data "aws_iam_policy_document" "drata_additional_permissions" {
+  for_each = var.drata_additional_inline_policies
+
+  dynamic "statement" {
+    for_each = each.value
+    content {
+      sid       = try(statement.value.sid, null) == null ? null : statement.value.sid
+      effect    = statement.value.effect
+      actions   = statement.value.actions
+      resources = statement.value.resources
+
+      dynamic "condition" {
+        for_each = toset(try(statement.value.conditions, null) == null ? [] : statement.value.conditions)
+        content {
+          test     = condition.value.test
+          variable = condition.value.variable
+          values   = condition.value.values
+        }
+      }
+    }
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "drata_additional_permissions" {
+resource "aws_iam_role_policy" "drata_additional_permissions" {
+  for_each = var.drata_additional_inline_policies
+
+  name   = each.key
+  role   = aws_iam_role.drata.name
+  policy = data.aws_iam_policy_document.drata_additional_permissions[each.key].json
+}
+
+resource "aws_iam_role_policy_attachment" "drata_additional_policy_attachments" {
+  for_each = var.drata_additional_policy_arns
+
   role       = aws_iam_role.drata.name
-  policy_arn = aws_iam_policy.drata_additional_permissions.arn
+  policy_arn = each.value
 }
